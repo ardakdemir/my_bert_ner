@@ -143,7 +143,7 @@ class DataProcessor(object):
     @classmethod
     def _read_data(cls, input_file):
         """Reads a BIO data."""
-        with open(input_file) as f:
+        with open(input_file,encoding="UTF-8") as f:
             lines = []
             words = []
             labels = []
@@ -181,7 +181,7 @@ class DataProcessor(object):
 class NerProcessor(DataProcessor):
     def get_train_examples(self, data_dir):
         return self._create_example(
-            self._read_data(os.path.join(data_dir, "train_dev.tsv")), "train"
+            self._read_data(os.path.join(data_dir, "train.tsv")), "train"
         )
 
     def get_dev_examples(self, data_dir):
@@ -210,7 +210,7 @@ class NerProcessor(DataProcessor):
 def write_tokens(tokens,mode):
     if mode=="test":
         path = os.path.join(FLAGS.output_dir, "token_"+mode+".txt")
-        wf = open(path,'a')
+        wf = open(path,'a',encoding="UTF-8")
         for token in tokens:
             if token!="**NULL**":
                 wf.write(token+'\n')
@@ -378,7 +378,7 @@ def create_model(bert_config, is_training, input_ids, input_mask,
         output_layer = tf.reshape(output_layer, [-1, hidden_size])
         logits = tf.matmul(output_layer, output_weight, transpose_b=True)
         logits = tf.nn.bias_add(logits, output_bias)
-        logits = tf.reshape(logits, [-1, FLAGS.max_seq_length, 7])
+        logits = tf.reshape(logits, [-1, FLAGS.max_seq_length, num_labels])
         # mask = tf.cast(input_mask,tf.float32)
         # loss = tf.contrib.seq2seq.sequence_loss(logits,labels,mask)
         # return (loss, logits, predict)
@@ -607,7 +607,7 @@ def main(_):
             drop_remainder=predict_drop_remainder)
 
         tokens = list()
-        with open(token_path, 'r') as reader:
+        with open(token_path, 'r',encoding="UTF-8") as reader:
             for line in reader:
                 tok = line.strip()
                 if tok == '[CLS]':
