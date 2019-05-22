@@ -206,6 +206,14 @@ class NerProcessor(DataProcessor):
             examples.append(InputExample(guid=guid, text=text, label=label))
         return examples
 
+def my_write_tokens(tokens,labels,mode):
+    if mode=="test":
+        path = os.path.join(FLAGS.output_dir, "token_"+mode+".txt")
+        wf = open(path,'a',encoding="UTF-8")
+        for token,label in zip(tokens,labels):
+            if token!="**NULL**":
+                wf.write(token+' '+label+'\n')
+        wf.close()
 
 def write_tokens(tokens,mode):
     if mode=="test":
@@ -226,8 +234,10 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     labellist = example.label.split(' ')
     tokens = []
     labels = []
+    orig_to_tok = []
     for i, word in enumerate(textlist):
         token = tokenizer.tokenize(word)
+        orig_to_tok.append(len(tokens)+1)# +1 for CLS
         tokens.extend(token)
         label_1 = labellist[i]
         for m in range(len(token)):
@@ -242,18 +252,22 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     ntokens = []
     segment_ids = []
     label_ids = []
+    my_labels = []
     ntokens.append("[CLS]")
     segment_ids.append(0)
     # append("O") or append("[CLS]") not sure!
     label_ids.append(label_map["[CLS]"])
+    my_labels.append("[CLS]")
     for i, token in enumerate(tokens):
         ntokens.append(token)
         segment_ids.append(0)
         label_ids.append(label_map[labels[i]])
+        my_labels.append(labels[i])
     ntokens.append("[SEP]")
     segment_ids.append(0)
     # append("O") or append("[SEP]") not sure!
     label_ids.append(label_map["[SEP]"])
+    my_labels.append("[SEP]")
     input_ids = tokenizer.convert_tokens_to_ids(ntokens)
     input_mask = [1] * len(input_ids)
     #label_mask = [1] * len(input_ids)
@@ -263,6 +277,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
         segment_ids.append(0)
         # we don't concerned about it!
         label_ids.append(0)
+        my_labels.append(0)
         ntokens.append("**NULL**")
         #label_mask.append(0)
     # print(len(input_ids))
@@ -290,7 +305,8 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
         label_ids=label_ids,
         #label_mask = label_mask
     )
-    write_tokens(ntokens,mode)
+    #write_tokens(ntokens,mode)
+    my_write_tokens(ntokens,my_labels,mode)
     return feature
 
 
@@ -607,9 +623,11 @@ def main(_):
             drop_remainder=predict_drop_remainder)
 
         tokens = list()
+        tmp_toks = []
         with open(token_path, 'r',encoding="UTF-8") as reader:
             for line in reader:
                 tok = line.strip()
+                tok = tok.split()[0]
                 if tok == '[CLS]':
                     tmp_toks = [tok]
                 elif tok == '[SEP]':
